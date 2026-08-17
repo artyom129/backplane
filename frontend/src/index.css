@@ -1,0 +1,132 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --canvas: #080a0c;
+  --surface: #0d1014;
+  --raised: #11151a;
+  --line: #252b33;
+  --ink: #f2f5f7;
+  --muted: #8d98a6;
+  --accent: #66e0ac;
+  --danger: #f2777a;
+  --warning: #efbe62;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--canvas);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 78% -15%, rgba(102, 224, 172, 0.045), transparent 32rem),
+    var(--canvas);
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(102, 224, 172, 0.2);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #313842;
+  background-clip: padding-box;
+}
+
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    @apply outline-none transition duration-180;
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply border border-line bg-raised;
+    border-radius: 10px;
+  }
+
+  .subtle-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  .field {
+    @apply w-full border border-line bg-surface px-3 py-2 text-sm text-ink;
+    min-height: 38px;
+    border-radius: 7px;
+  }
+
+  .field::placeholder {
+    color: var(--muted);
+    opacity: 0.6;
+  }
+
+  .field:hover {
+    border-color: #363e48;
+  }
+
+  .field:focus {
+    border-color: rgba(102, 224, 172, 0.7);
+    box-shadow: 0 0 0 3px rgba(102, 224, 172, 0.08);
+  }
+
+  .field:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  .data-row {
+    @apply border-b border-line transition-colors duration-180 last:border-0;
+  }
+
+  .data-row:hover {
+    background: rgba(255, 255, 255, 0.018);
+  }
+
+  .eyebrow {
+    @apply text-[10px] font-semibold uppercase tracking-[0.16em] text-muted;
+  }
+}
