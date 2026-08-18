@@ -8,7 +8,7 @@ from app.endpoints.models import AuthenticationType, Endpoint, HTTPMethod
 from app.incidents.models import Incident
 from app.requests.models import RequestOutcome, RequestRecord
 from app.requests.service import create_endpoint_incident_if_needed
-from conftest import TenantData
+from tests.conftest import TenantData
 
 
 def test_api_keys_are_random_prefixed_and_hashed() -> None:
