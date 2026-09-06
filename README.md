@@ -1,13 +1,23 @@
 # BACKPLANE
 
-**An open-source operations control plane for APIs, webhooks and background automation.**
+**Operations control plane for APIs, webhooks and background automation.**
+
+FastAPI • React • PostgreSQL • Redis • Docker
+
+BACKPLANE helps engineering teams monitor and operate API integrations, webhook delivery,
+background jobs and incidents from one place.
+
+### Highlights
+
+- Multi-tenant organizations and RBAC
+- Reliable webhook delivery with retries and DLQ
+- Background jobs and scheduling
+- Incident tracking and audit logs
+- Secret vault and API keys
+- Prometheus metrics and real-time activity
+- Docker Compose + CI + tests
 
 ![BACKPLANE overview](docs/hero.svg)
-
-BACKPLANE gives a developer or small engineering team one place to register external APIs, execute
-requests, inspect inbound webhooks, operate delivery retries, schedule background work, track
-incidents, and audit every sensitive action. PostgreSQL is the source of truth; Redis carries jobs
-and real-time activity, and every metric on the overview is computed from stored operations data.
 
 ## Why Backplane
 
@@ -193,4 +203,3 @@ backplane/
 ## License
 
 [MIT](LICENSE)
-
