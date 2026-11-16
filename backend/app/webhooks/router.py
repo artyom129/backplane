@@ -21,6 +21,7 @@ from app.core.encryption import encrypt_value
 from app.core.errors import AppError, NotFoundError
 from app.core.network import validate_outbound_url
 from app.core.pagination import Page, PageParams, pagination_params
+from app.core.queueing import commit_and_enqueue, defer_job
 from app.core.redis import arq_pool
 from app.projects.models import Project
 from app.webhooks.models import (
@@ -161,8 +162,8 @@ async def receive_webhook(
             resource_id=str(event.id),
         )
     if verified != SignatureStatus.INVALID:
-        await enqueue_event_deliveries(session, queue, event)
-    await session.commit()
+        await enqueue_event_deliveries(session, event)
+    await commit_and_enqueue(session, queue)
     return WebhookAccepted(event_id=event.id)
 
 
@@ -416,7 +417,7 @@ async def replay_event(
     )
     if not event:
         raise NotFoundError("webhook_event_not_found", "Webhook event was not found.")
-    count = await enqueue_event_deliveries(session, queue, event)
+    count = await enqueue_event_deliveries(session, event)
     await record_action(
         session,
         actor_id=user.id,
@@ -427,7 +428,7 @@ async def replay_event(
         resource_id=str(event.id),
         metadata={"destinations": count},
     )
-    await session.commit()
+    await commit_and_enqueue(session, queue)
     return {"deliveries_enqueued": count}
 
 
@@ -461,6 +462,6 @@ async def retry_delivery(
     )
     session.add(retry)
     await session.flush()
-    await queue.enqueue_job("deliver_webhook", str(retry.id))
-    await session.commit()
+    defer_job(session, "deliver_webhook", str(retry.id))
+    await commit_and_enqueue(session, queue)
     return {"delivery_id": str(retry.id)}

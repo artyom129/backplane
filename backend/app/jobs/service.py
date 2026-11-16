@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.audit.service import publish_activity
 from app.core.errors import AppError
 from app.core.network import validate_outbound_url
+from app.core.queueing import commit_and_enqueue, defer_job
 from app.endpoints.models import Endpoint
 from app.incidents.models import (
     Incident,
@@ -88,13 +89,12 @@ async def _run_endpoint_check(session: AsyncSession, job: Job) -> dict[str, obje
 
 async def _run_webhook_replay(
     session: AsyncSession,
-    queue: ArqRedis,
     job: Job,
 ) -> dict[str, object]:
     event = await session.get(WebhookEvent, uuid.UUID(str(job.payload["event_id"])))
     if not event:
         raise RuntimeError("Webhook event no longer exists")
-    count = await enqueue_event_deliveries(session, queue, event)
+    count = await enqueue_event_deliveries(session, event)
     return {"deliveries_enqueued": count}
 
 
@@ -152,19 +152,19 @@ async def execute_job(
         if job.type == "endpoint.check":
             result = await _run_endpoint_check(session, job)
         elif job.type == "webhook.replay":
-            result = await _run_webhook_replay(session, queue, job)
+            result = await _run_webhook_replay(session, job)
         else:
             raise RuntimeError(f"Unsupported job type: {job.type}")
         job.result = result
         job.status = JobStatus.COMPLETED
         job.finished_at = datetime.now(UTC)
-    except (httpx.RequestError, AppError, RuntimeError, ValueError) as exc:
-        error = str(exc)
+    except Exception as exc:  # any failure must leave the job in a terminal or retry state
+        error = str(exc) or exc.__class__.__name__
         job.error = error
         if job.attempts < job.max_attempts:
             job.status = JobStatus.RETRYING
             delay = RETRY_DELAYS[min(job.attempts - 1, len(RETRY_DELAYS) - 1)]
-            await queue.enqueue_job("execute_job", str(job.id), _defer_by=delay)
+            defer_job(session, "execute_job", str(job.id), _defer_by=delay)
         else:
             job.status = JobStatus.FAILED
             job.finished_at = datetime.now(UTC)
@@ -182,4 +182,4 @@ async def execute_job(
             status="error" if job.status == JobStatus.FAILED else "success",
             resource_id=str(job.id),
         )
-    await session.commit()
+    await commit_and_enqueue(session, queue)

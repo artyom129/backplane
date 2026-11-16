@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.encryption import encrypt_value
+from app.core.queueing import commit_and_enqueue
 from app.incidents.models import Incident
 from app.webhooks.models import (
     DeliveryStatus,
@@ -73,11 +74,14 @@ async def test_hmac_signature_verification_and_delivery_enqueue(
     assert signature_status(endpoint, body, "sha256=invalid") == SignatureStatus.INVALID
 
     queue = FakeQueue()
-    assert await enqueue_event_deliveries(session, queue, event) == 1
+    assert await enqueue_event_deliveries(session, event) == 1
     delivery = await session.scalar(select(WebhookDelivery))
     assert delivery is not None
     assert delivery.status == DeliveryStatus.PENDING
+    assert queue.jobs == []
+    await commit_and_enqueue(session, queue)
     assert queue.jobs[0][0] == "deliver_webhook"
+    assert queue.jobs[0][1] == (str(delivery.id),)
 
 
 async def test_final_webhook_failure_enters_dlq_and_creates_incident(

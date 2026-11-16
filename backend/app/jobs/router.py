@@ -17,8 +17,9 @@ from app.api.dependencies import (
     SessionDep,
 )
 from app.audit.service import record_action
-from app.core.errors import NotFoundError
+from app.core.errors import AppError, NotFoundError
 from app.core.pagination import Page, PageParams, pagination_params
+from app.core.queueing import commit_and_enqueue, defer_job
 from app.core.redis import arq_pool
 from app.jobs.models import Job, JobStatus, ScheduledJob
 from app.jobs.schemas import (
@@ -105,7 +106,7 @@ async def create_job(
     )
     session.add(job)
     await session.flush()
-    await queue.enqueue_job("execute_job", str(job.id))
+    defer_job(session, "execute_job", str(job.id))
     await record_action(
         session,
         actor_id=user.id,
@@ -116,7 +117,7 @@ async def create_job(
         resource_id=str(job.id),
         metadata={"type": job.type},
     )
-    await session.commit()
+    await commit_and_enqueue(session, queue)
     return job
 
 
@@ -143,12 +144,18 @@ async def retry_job(
     job = await session.scalar(select(Job).where(Job.id == job_id, Job.project_id == project.id))
     if not job:
         raise NotFoundError("job_not_found", "Job was not found.")
+    if job.status != JobStatus.FAILED:
+        raise AppError(
+            "job_not_retryable",
+            "Only failed jobs can be retried; this job is still queued, running or done.",
+            409,
+        )
     job.status = JobStatus.QUEUED
     job.attempts = 0
     job.error = None
     job.finished_at = None
-    await queue.enqueue_job("execute_job", str(job.id))
-    await session.commit()
+    defer_job(session, "execute_job", str(job.id))
+    await commit_and_enqueue(session, queue)
     return job
 
 

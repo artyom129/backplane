@@ -7,6 +7,7 @@ from croniter import croniter
 from sqlalchemy import select
 
 from app.core.logging import configure_logging
+from app.core.queueing import commit_and_enqueue, defer_job
 from app.core.redis import arq_pool
 from app.db.session import SessionFactory
 from app.jobs.models import Job, JobStatus, ScheduledJob
@@ -17,49 +18,52 @@ logger = structlog.get_logger()
 async def dispatch_due_schedules() -> int:
     now = datetime.now(UTC)
     queue = await arq_pool()
-    async with SessionFactory() as session:
-        schedules = list(
-            await session.scalars(
-                select(ScheduledJob)
-                .where(
-                    ScheduledJob.enabled.is_(True),
-                    ScheduledJob.next_run_at <= now,
+    try:
+        async with SessionFactory() as session:
+            schedules = list(
+                await session.scalars(
+                    select(ScheduledJob)
+                    .where(
+                        ScheduledJob.enabled.is_(True),
+                        ScheduledJob.next_run_at <= now,
+                    )
+                    .with_for_update(skip_locked=True)
+                    .limit(100)
                 )
-                .with_for_update(skip_locked=True)
-                .limit(100)
             )
-        )
-        for schedule in schedules:
-            job_type = str(schedule.action.get("type", ""))
-            payload = schedule.action.get("payload", {})
-            if not isinstance(payload, dict):
-                payload = {}
-            payload = {**payload, "schedule_id": str(schedule.id)}
-            job = Job(
-                project_id=schedule.project_id,
-                environment_id=schedule.environment_id,
-                type=job_type,
-                status=JobStatus.QUEUED,
-                payload=payload,
-                created_at=now,
-                max_attempts=3,
-            )
-            session.add(job)
-            await session.flush()
-            schedule.last_run_at = now
-            schedule.last_status = JobStatus.QUEUED
-            localized = now.astimezone(ZoneInfo(schedule.timezone))
-            schedule.next_run_at = (
-                croniter(
-                    schedule.cron_expression,
-                    localized,
+            for schedule in schedules:
+                job_type = str(schedule.action.get("type", ""))
+                payload = schedule.action.get("payload", {})
+                if not isinstance(payload, dict):
+                    payload = {}
+                payload = {**payload, "schedule_id": str(schedule.id)}
+                job = Job(
+                    project_id=schedule.project_id,
+                    environment_id=schedule.environment_id,
+                    type=job_type,
+                    status=JobStatus.QUEUED,
+                    payload=payload,
+                    created_at=now,
+                    max_attempts=3,
                 )
-                .get_next(datetime)
-                .astimezone(UTC)
-            )
-            await queue.enqueue_job("execute_job", str(job.id))
-        await session.commit()
-        return len(schedules)
+                session.add(job)
+                await session.flush()
+                schedule.last_run_at = now
+                schedule.last_status = JobStatus.QUEUED
+                localized = now.astimezone(ZoneInfo(schedule.timezone))
+                schedule.next_run_at = (
+                    croniter(
+                        schedule.cron_expression,
+                        localized,
+                    )
+                    .get_next(datetime)
+                    .astimezone(UTC)
+                )
+                defer_job(session, "execute_job", str(job.id))
+            await commit_and_enqueue(session, queue)
+            return len(schedules)
+    finally:
+        await queue.aclose()
 
 
 async def run_scheduler() -> None:

@@ -17,6 +17,7 @@ from app.config import settings
 from app.core.encryption import decrypt_value
 from app.core.errors import AppError
 from app.core.network import validate_outbound_url
+from app.core.queueing import commit_and_enqueue, defer_job
 from app.core.redis import redis_client
 from app.incidents.models import (
     Incident,
@@ -86,9 +87,9 @@ async def enforce_rate_limit(public_id_value: str, source_ip: str) -> bool:
 
 async def enqueue_event_deliveries(
     session: AsyncSession,
-    queue: ArqRedis,
     event: WebhookEvent,
 ) -> int:
+    """Create pending deliveries; the caller publishes them with commit_and_enqueue."""
     destinations = list(
         await session.scalars(
             select(WebhookDestination).where(
@@ -108,7 +109,7 @@ async def enqueue_event_deliveries(
         )
         session.add(delivery)
         await session.flush()
-        await queue.enqueue_job("deliver_webhook", str(delivery.id))
+        defer_job(session, "deliver_webhook", str(delivery.id))
     return len(destinations)
 
 
@@ -237,7 +238,7 @@ async def deliver_webhook(
         session.add(retry)
         await session.flush()
         delay = RETRY_DELAYS[delivery.attempt_number - 1]
-        await queue.enqueue_job("deliver_webhook", str(retry.id), _defer_by=delay)
+        defer_job(session, "deliver_webhook", str(retry.id), _defer_by=delay)
     else:
         delivery.status = DeliveryStatus.DEAD_LETTER
         await create_delivery_incident(
@@ -246,4 +247,4 @@ async def deliver_webhook(
             destination=destination,
             error=error,
         )
-    await session.commit()
+    await commit_and_enqueue(session, queue)
