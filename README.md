@@ -1,43 +1,39 @@
+<div align="center">
+
 # BACKPLANE
 
-**Operations control plane for APIs, webhooks and background automation.**
+**One place to see what failed, what was retried, and what changed across your APIs, webhooks and background jobs.**
 
-FastAPI • React • PostgreSQL • Redis • Docker
+[English](README.md) · [Русский](README.ru.md) · [Қазақша](README.kk.md)
 
-BACKPLANE helps engineering teams monitor and operate API integrations, webhook delivery,
-background jobs and incidents from one place.
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-17%20passed-2E8B57)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-### Highlights
+</div>
 
-- Multi-tenant organizations and RBAC
-- Reliable webhook delivery with retries and DLQ
-- Background jobs and scheduling
-- Incident tracking and audit logs
-- Secret vault and API keys
-- Prometheus metrics and real-time activity
-- Docker Compose + CI + tests
+<p align="center">
+  <img src="docs/hero.svg" alt="BACKPLANE overview" width="860">
+</p>
 
-![BACKPLANE overview](docs/hero.svg)
+## What it is
 
-## Why Backplane
+Integration failures are usually spread across application logs, queue dashboards, webhook vendor pages, cron hosts and private runbooks. BACKPLANE brings that path into one control plane for engineering teams: call APIs, receive and forward webhooks, run background and scheduled jobs, and get an incident when something keeps failing.
 
-Integration failures are usually spread across application logs, queue dashboards, webhook vendor
-pages, cron hosts, and private runbooks. BACKPLANE brings the operational path together without
-pretending to replace a full observability stack. It is deliberately optimized for the moment when
-someone needs to answer: _what failed, what was retried, and what changed?_
+It does not try to replace a full observability stack. It is built for the moment someone has to answer three questions fast: what failed, what was retried, and what changed.
 
-## Features
-
-- Multi-tenant organizations, projects, environments, and backend-enforced owner/admin/developer/viewer roles
-- JWT access tokens, refresh-token rotation, scrypt password hashing, and scoped hashed API keys
-- Encrypted secret vault and encrypted endpoint authentication configuration
-- API endpoint registry and a two-pane request console with persisted response history
-- Public webhook inbox with payload limits, rate limiting, HMAC verification, and event inspection
-- Reliable webhook forwarding with 1m/5m/15m backoff, delivery attempts, replay, and dead-letter handling
-- Redis-backed background jobs plus a timezone-aware cron scheduler using PostgreSQL row locking
-- Automatic incidents for repeated endpoint 5xx responses, exhausted deliveries, and terminal job failures
-- Audit trail, persisted activity feed, Server-Sent Events, and real database-derived telemetry
-- Structured logs, request IDs, Prometheus metrics, health probes, migrations, seed data, and CI
+| Area | What you get |
+|---|---|
+| **APIs** | A registry of outbound endpoints and a request console with saved response history |
+| **Webhooks** | A public inbox with HMAC verification, retries, replay and a dead-letter queue |
+| **Jobs** | Redis-backed background jobs and a timezone-aware cron scheduler |
+| **Incidents** | Opened automatically from repeated 5xx responses, exhausted deliveries and failed jobs |
+| **Access** | Organizations, projects, environments, four roles, scoped API keys |
+| **Trail** | Audit log, live activity feed, Prometheus metrics, health probes |
 
 ## Architecture
 
@@ -56,89 +52,117 @@ flowchart LR
     Redis -->|"SSE activity"| Browser
 ```
 
-The backend is a modular monolith. Domain modules own their models, schemas, routers, and business
-logic, while security, errors, pagination, encryption, logging, and outbound-network policy live in
-small shared core modules. The worker and scheduler use the same domain services and database
-invariants as HTTP requests.
+The backend is a modular monolith. Each domain module owns its models, schemas, routers and business logic. Security, errors, pagination, encryption, logging and outbound-network policy live in a few small shared modules. The worker and the scheduler use the same domain services and database rules as HTTP requests.
+
+## Features
+
+| Group | Details |
+|---|---|
+| **Tenancy and roles** | Organizations, projects, environments. Owner, admin, developer and viewer roles enforced on the backend |
+| **Authentication** | JWT access tokens, refresh-token rotation, scrypt password hashing, scoped API keys stored as hashes |
+| **Secrets** | Encrypted vault, encrypted endpoint credentials, never returned after creation |
+| **API console** | Endpoint registry, two-pane request console, persisted response history |
+| **Webhook inbox** | Payload limits, rate limiting, HMAC verification, event inspection |
+| **Delivery** | Forwarding with 1 / 5 / 15 minute backoff, attempt log, replay, dead-letter handling |
+| **Jobs** | Redis queue, cron scheduler with PostgreSQL row locking, retries |
+| **Incidents** | Detected automatically, with a lifecycle and a timeline |
+| **Observability** | Structured logs, request IDs, Prometheus metrics, SSE activity, telemetry from real data |
+| **Operations** | Alembic migrations, seed data, Docker Compose, CI |
 
 ## Interface
 
-The desktop-first interface includes dedicated views for the overview, request console, webhook
-inspector, jobs and schedules, incident timeline, endpoint registry, environments, secret vault,
-API keys, audit records, and organization membership. It is responsive down to mobile navigation
-and preserves keyboard focus, loading, empty, error, and confirmation states. Press `Ctrl+K` or
-`Cmd+K` anywhere to open the command palette.
+A desktop-first interface with a page for each area: overview, request console, webhook inspector, jobs and schedules, incident timeline, endpoint registry, environments, secret vault, API keys, audit records and organization members. It is responsive down to mobile navigation and keeps focus, loading, empty, error and confirmation states. `Ctrl+K` or `Cmd+K` opens the command palette anywhere.
 
 ## Quick start
 
-Requirements: Docker with Compose v2 and `make` (or run the equivalent Compose commands directly).
+You need Docker with Compose v2 and `make`, or the equivalent Compose commands.
 
 ```bash
 cp .env.example .env
 make dev
 ```
 
-In another terminal, load deterministic portfolio data:
+In another terminal, load the demo data:
 
 ```bash
 make seed
 ```
 
-Open [http://localhost:8080](http://localhost:8080) and sign in with:
+Open [http://localhost:8080](http://localhost:8080) and sign in with the demo account:
 
 ```text
 demo@backplane.dev
 backplane-demo
 ```
 
-The API documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs) in
-development. `make dev` runs PostgreSQL, Redis, the migration job, API, worker, scheduler, and web UI.
+API docs are at [http://localhost:8000/docs](http://localhost:8000/docs) in development. `make dev` starts PostgreSQL, Redis, the migration job, the API, the worker, the scheduler and the web UI.
+
+## What's new in this version
+
+| What | How it works now |
+|---|---|
+| Queueing | A job is published to the queue only after the transaction that created its row has committed, so a worker never finds an empty row |
+| Job states | A job that raises always ends in a terminal status, never stuck in `RUNNING` |
+| Retries | Only `FAILED` jobs can be retried. Any other state returns `409` |
+| Scheduler | Releases its Redis connection pool after every dispatch |
+| Tests | 17 tests, 8 of them for queueing and job states |
 
 ## Environment variables
 
 | Variable | Purpose | Local default |
-| --- | --- | --- |
+|---|---|---|
 | `DATABASE_URL` | Async SQLAlchemy PostgreSQL DSN | Compose PostgreSQL |
-| `REDIS_URL` | Queue, rate-limit, and activity Redis DSN | Compose Redis |
-| `JWT_SECRET` | JWT signing secret, minimum 32 characters | replace before deployment |
-| `ENCRYPTION_KEY` | Independent passphrase used to derive the Fernet key | replace before deployment |
+| `REDIS_URL` | Queue, rate-limit and activity Redis DSN | Compose Redis |
+| `JWT_SECRET` | JWT signing secret, at least 32 characters | replace before deployment |
+| `ENCRYPTION_KEY` | Independent passphrase for deriving the Fernet key | replace before deployment |
 | `CORS_ORIGINS` | JSON list of allowed browser origins | local UI origins |
 | `TRUSTED_HOSTS` | JSON list accepted by the host middleware | local service names |
 | `PUBLIC_API_URL` | Base URL shown for inbound webhooks | `http://localhost:8000` |
-| `MAX_WEBHOOK_BYTES` | Maximum accepted webhook body | 1 MiB |
-| `WEBHOOK_RATE_LIMIT` | Per-source/per-endpoint events per minute | 120 |
-| `ALLOW_PRIVATE_NETWORKS` | Permit outbound requests to private/reserved IPs | `false` |
+| `MAX_WEBHOOK_BYTES` | Largest accepted webhook body | 1 MiB |
+| `WEBHOOK_RATE_LIMIT` | Events per minute per source and endpoint | 120 |
+| `ALLOW_PRIVATE_NETWORKS` | Allow outbound requests to private and reserved IPs | `false` |
 
-See [.env.example](.env.example) for the complete list. JWT and encryption values must be independent
-random secrets outside local development.
+See [.env.example](.env.example) for the full list. Outside local development, `JWT_SECRET` and `ENCRYPTION_KEY` must be independent random values.
 
 ## API
 
-Authenticated application routes live under `/api/v1`:
+Authenticated routes live under `/api/v1`:
 
 ```text
 /auth                 registration, login, refresh rotation, logout, current user
 /organizations        organization settings and membership
 /projects             tenant-scoped projects
 /environments         runtime environments and non-secret variables
-/endpoints             reusable outbound API definitions
+/endpoints            reusable outbound API definitions
 /requests             request execution and paginated history
 /webhooks             endpoints, destinations, inbox, replay, retry
-/jobs                  job executions and retries
-/scheduled-jobs        timezone-aware cron schedules
-/incidents             detection, lifecycle, and timeline
-/secrets               create, rotate, list metadata, delete
-/api-keys              create-once keys, scopes, usage, revoke
-/audit                 paginated attribution log
-/activity              recent activity and SSE stream
-/telemetry/dashboard   database-derived overview metrics
+/jobs                 job executions and retries
+/scheduled-jobs       timezone-aware cron schedules
+/incidents            detection, lifecycle and timeline
+/secrets              create, rotate, list metadata, delete
+/api-keys             create-once keys, scopes, usage, revoke
+/audit                paginated attribution log
+/activity             recent activity and SSE stream
+/telemetry/dashboard  overview metrics derived from the database
 ```
 
-Application requests carry `X-Organization-ID`, `X-Project-ID`, and where relevant
-`X-Environment-ID`. Each identifier is verified against the authenticated principal. API keys may
-only call request, webhook, and job routes covered by their explicit scopes.
+Requests carry `X-Organization-ID`, `X-Project-ID` and, where relevant, `X-Environment-ID`. Each identifier is checked against the authenticated principal. An API key can call only the request, webhook and job routes its scopes cover.
 
-## Testing and quality
+## Security
+
+| Control | How |
+|---|---|
+| Passwords | scrypt with a random salt for each password |
+| Refresh tokens | One-time: a successful refresh revokes and replaces the old token |
+| Secrets | Encrypted before they are stored and never returned after creation |
+| API keys | Stored only as SHA-256 hashes, the raw key is shown once |
+| Outbound requests | HTTP(S) only, no embedded credentials, no redirects, private, loopback, link-local, multicast and reserved addresses blocked by default |
+| Webhooks | Configurable payload ceiling and Redis-backed rate limit |
+| Errors | A stable envelope, no stack traces |
+
+This is a practical baseline, not a certification. A public deployment should add TLS, managed secret storage or a KMS, rate limiting at the edge, backup and restore procedures, and a network egress policy for its environment.
+
+## Tests and quality
 
 ```bash
 make test
@@ -147,33 +171,16 @@ make build
 docker compose config --quiet
 ```
 
-The pytest suite covers authentication and refresh reuse, project tenant isolation, RBAC, webhook
-signatures and dead-letter incidents, job retries, API-key hashing, and repeated-5xx incident
-detection. CI independently checks the Python and TypeScript builds.
-
-## Security notes
-
-- Passwords use scrypt with a per-password random salt.
-- Refresh tokens are one-time sessions: successful refresh revokes and replaces the previous token.
-- Secret and endpoint credential values are encrypted before persistence and never returned after creation.
-- API keys are stored only as SHA-256 hashes; the raw key is shown once.
-- Outbound URLs are restricted to HTTP(S), reject embedded credentials, do not follow redirects, and
-  block private, loopback, link-local, multicast, and reserved addresses by default.
-- Webhooks enforce a configurable payload ceiling and Redis-backed rate limit.
-- Error responses use a stable envelope and do not expose stack traces.
-
-These controls are a practical baseline, not a certification. A public deployment should add TLS,
-managed secret storage or KMS integration, edge rate limiting, backup/restore procedures, and an
-environment-specific network egress policy.
+The suite covers authentication and refresh reuse, tenant isolation between projects, role checks, webhook signatures and dead-letter incidents, job retries and states, queue publishing after commit, API-key hashing and incident detection on repeated 5xx. CI checks the Python and TypeScript builds separately.
 
 ## Project structure
 
 ```text
 backplane/
 ├── backend/
-│   ├── alembic/                 explicit schema migrations
+│   ├── alembic/                 schema migrations
 │   ├── app/
-│   │   ├── api/                 dependency and routing composition
+│   │   ├── api/                 dependencies and routing
 │   │   ├── auth/ organizations/ projects/ environments/
 │   │   ├── endpoints/ requests/ webhooks/ jobs/ incidents/
 │   │   ├── secrets/ api_keys/ audit/ telemetry/
@@ -193,13 +200,17 @@ backplane/
 
 ## Roadmap
 
-- PostgreSQL-backed retention policies and export
-- Configurable incident detection thresholds
+- Retention policies and export
+- Configurable incident thresholds
 - OpenTelemetry trace correlation
-- SSO/SAML and organization invitation delivery
+- SSO and SAML, delivery of organization invitations
 - Pluggable KMS providers for envelope encryption
-- Destination-level concurrency and circuit breakers
+- Concurrency limits and circuit breakers per destination
 
-## License
+---
 
-[MIT](LICENSE)
+<div align="center">
+
+Built by **[Koncha Artyom](https://github.com/artyom129)** · MIT License
+
+</div>
